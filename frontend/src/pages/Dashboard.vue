@@ -10,7 +10,10 @@ onMounted(async () => {
 <template>
   <div class="page">
     <h1>总览</h1>
-    <p class="muted">变更日志投影：源 CDC 事件按序落到当前投影，批次计数与快照互证。</p>
+    <p class="muted">
+      变更日志投影：源 CDC 事件按序落到当前投影，批次计数与快照互证。upsert 可按流配置为字段级补丁或整行替换，
+      两种语义互斥，切换只影响之后新开批次。
+    </p>
     <p v-if="err" class="tag danger">{{ err }}</p>
     <div class="panel" v-if="stats">
       <div class="stat-grid">
@@ -22,6 +25,12 @@ onMounted(async () => {
         <div class="stat"><div class="stat-num">{{ stats.ooo_buffered }}</div><div class="stat-label">缓冲中</div></div>
       </div>
       <p style="margin-top:1rem">默认应用序 <span class="tag">{{ stats.apply_order }}</span>（按事件 seq 升序）</p>
+      <p>
+        合并策略：
+        <span class="tag ok">字段级补丁 {{ stats.upsert_mode_counts.patch }}</span>
+        <span class="tag warn" style="margin-left:0.35rem">整行替换 {{ stats.upsert_mode_counts.replace }}</span>
+        · <router-link to="/streams">配置策略</router-link>
+      </p>
       <p><router-link to="/run">去投影台跑一趟 →</router-link></p>
     </div>
   </div>

@@ -10,7 +10,10 @@ onMounted(async () => {
 <template>
   <div class="page">
     <h1>设置</h1>
-    <p class="muted">底座策略只读展示；互斥策略切换留给后题。</p>
+    <p class="muted">
+      这里展示全局底座策略。upsert 合并策略按投影流配置，见
+      <router-link to="/streams">投影流</router-link>；同一流同时只能一种策略。
+    </p>
     <p v-if="err" class="tag danger">{{ err }}</p>
     <div class="panel">
       <table>

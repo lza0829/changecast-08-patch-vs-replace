@@ -169,6 +169,23 @@ table {
   font-size: 0.94rem;
 }
 
+.table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.table-scroll table { min-width: 46rem; }
+
+.cell-payload {
+  max-width: 13rem;
+  white-space: normal;
+}
+
+.cell-payload .kv {
+  display: block;
+  white-space: nowrap;
+}
+
 th, td {
   text-align: left;
   padding: 0.5rem 0.4rem;
@@ -183,6 +200,7 @@ th {
   color: var(--muted);
   font-weight: 700;
   border-bottom: 2px solid #b8c2ce;
+  white-space: nowrap;
 }
 
 tbody tr:nth-child(even) { background: rgba(35, 43, 54, 0.03); }

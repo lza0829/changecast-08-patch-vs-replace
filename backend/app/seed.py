@@ -13,6 +13,7 @@ STREAM_SEEDS = [
         "payload_fields": ["display_name", "tier", "region"],
         "fixture": "member_profile.json",
         "enabled": 1,
+        "upsert_mode": "patch",
     },
     {
         "code": "store_archive",
@@ -22,6 +23,7 @@ STREAM_SEEDS = [
         "payload_fields": ["name", "status", "city"],
         "fixture": "store_archive.json",
         "enabled": 1,
+        "upsert_mode": "replace",
     },
     {
         "code": "channel_attr",
@@ -31,12 +33,22 @@ STREAM_SEEDS = [
         "payload_fields": ["label", "active"],
         "fixture": "channel_attr.json",
         "enabled": 1,
+        "upsert_mode": "patch",
     },
 ]
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _columns(conn, table: str) -> set[str]:
+    return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _ensure_column(conn, table: str, name: str, ddl: str) -> None:
+    if name not in _columns(conn, table):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
 
 def init_db() -> None:
@@ -117,8 +129,44 @@ def init_db() -> None:
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS stream_mode_changes(
+                id INTEGER PRIMARY KEY,
+                stream_id INTEGER NOT NULL,
+                from_mode TEXT,
+                to_mode TEXT NOT NULL,
+                cutoff_batch_id INTEGER,
+                note TEXT,
+                changed_at TEXT NOT NULL,
+                FOREIGN KEY(stream_id) REFERENCES project_streams(id)
+            );
             """
         )
+
+        # Additive migrations for databases created by the 0-1 base.  Those
+        # databases applied whole-row upserts, so the migrated default is
+        # ``replace`` to keep their existing rows explainable.
+        _ensure_column(conn, "project_streams", "upsert_mode", "TEXT NOT NULL DEFAULT 'replace'")
+        _ensure_column(conn, "project_batches", "upsert_mode", "TEXT NOT NULL DEFAULT 'replace'")
+        for column in (
+            "merge_mode TEXT",
+            "payload_json TEXT",
+            "before_json TEXT",
+            "after_json TEXT",
+            "cleared_json TEXT",
+            "preserved_json TEXT",
+        ):
+            name, ddl = column.split(" ", 1)
+            _ensure_column(conn, "applied_events", name, ddl)
+
+        # At most one in-flight batch per stream, enforced by the database so a
+        # concurrent run cannot start underneath a policy change.
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_project_batches_running
+            ON project_batches(stream_id) WHERE status='running'
+            """
+        )
+
         if conn.execute("SELECT COUNT(*) c FROM project_streams").fetchone()["c"] == 0:
             now = _now()
             for s in STREAM_SEEDS:
@@ -126,8 +174,8 @@ def init_db() -> None:
                     """
                     INSERT INTO project_streams(
                         code, title, domain, entity_key_name, payload_fields_json,
-                        fixture, enabled, watermark_seq, created_at
-                    ) VALUES (?,?,?,?,?,?,?,?,?)
+                        fixture, enabled, watermark_seq, created_at, upsert_mode
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         s["code"],
@@ -139,6 +187,7 @@ def init_db() -> None:
                         s["enabled"],
                         0,
                         now,
+                        s["upsert_mode"],
                     ),
                 )
         if conn.execute("SELECT COUNT(*) c FROM settings").fetchone()["c"] == 0:

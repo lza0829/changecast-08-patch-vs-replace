@@ -38,5 +38,13 @@
     "seq": 5,
     "event_time": "2026-01-08T03:00:00Z",
     "payload": null
+  },
+  {
+    "event_id": "ch-006",
+    "entity_key": "WEB",
+    "op": "upsert",
+    "seq": 6,
+    "event_time": "2026-01-09T02:00:00Z",
+    "payload": {"active": false}
   }
 ]

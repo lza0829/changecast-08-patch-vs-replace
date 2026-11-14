@@ -9,6 +9,7 @@ const streams = ref([])
 const streamId = ref(null)
 const includeDeleted = ref(true)
 const err = ref('')
+const MODE_NAMES = { patch: '字段级补丁', replace: '整行替换' }
 
 async function refresh() {
   const q = new URLSearchParams()
@@ -34,14 +35,16 @@ watch([streamId, includeDeleted], async () => {
 <template>
   <div class="page">
     <h1>投影快照</h1>
-    <p class="muted">当前投影行：实体键、最近应用 seq、载荷与删除态。与批次计数互证。</p>
+    <p class="muted">当前投影行：实体键、最近应用 seq、载荷与删除态。载荷只反映已被事件写过的字段，与批次计数互证。</p>
     <p v-if="err" class="tag danger">{{ err }}</p>
     <div class="panel" style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end">
       <label>
         投影流
         <select v-model="streamId" style="display:block;min-width:14rem;margin-top:0.25rem">
           <option :value="undefined">全部</option>
-          <option v-for="s in streams" :key="s.id" :value="s.id">{{ s.title }}</option>
+          <option v-for="s in streams" :key="s.id" :value="s.id">
+            {{ s.title }} · {{ MODE_NAMES[s.upsert_mode] || s.upsert_mode }}
+          </option>
         </select>
       </label>
       <label style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.15rem">
@@ -74,3 +77,4 @@ watch([streamId, includeDeleted], async () => {
     </div>
   </div>
 </template>
+
